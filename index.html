@@ -1,0 +1,783 @@
+﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMAN BALAD PHARMACY</title>
+    <!-- مكتبات Firebase للمزامنة اللحظية -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        :root {
+            --primary: #1e293b;
+            --secondary: #0f766e;
+            --accent: #2563eb;
+            --bg: #f1f5f9;
+            --card-bg: #ffffff;
+            --text: #0f172a;
+            --border: #cbd5e1;
+        }
+
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 1100px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        .top-bar {
+            background: var(--primary);
+            color: #fff;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .top-bar h2 { margin: 0; font-size: 18px; }
+
+        .dashboard-nav {
+            display: flex;
+            gap: 10px;
+            background: #e2e8f0;
+            padding: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-tab {
+            padding: 10px 18px;
+            border: none;
+            background: transparent;
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+            border-radius: 6px;
+            color: var(--text);
+        }
+
+        .nav-tab.active { background: var(--secondary); color: white; }
+
+        .content-area { padding: 20px; }
+
+        .clock-display {
+            background: #f8fafc;
+            color: #0284c7;
+            font-family: 'Courier New', monospace;
+            font-size: 28px;
+            font-weight: bold;
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 2px solid #bae6fd;
+        }
+
+        .card {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 18px;
+            margin-bottom: 15px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-top: 5px;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .btn-success { background: #16a34a; color: white; }
+        .btn-danger { background: #dc2626; color: white; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-warning { background: #d97706; color: white; }
+
+        .tasks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 10px;
+            background: #f8fafc;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            max-height: 320px;
+            overflow-y: auto;
+        }
+
+        .task-card {
+            background: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+        }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid var(--border); padding: 8px; text-align: center; font-size: 13px; }
+        th { background: #f8fafc; color: var(--primary); font-weight: bold; }
+
+        .summary-box {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            color: #166534;
+        }
+
+        .points-badge {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+
+        #printable-receipt { display: none; }
+        @media print {
+            body * { visibility: hidden; }
+            #printable-receipt, #printable-receipt * { visibility: visible; }
+            #printable-receipt {
+                display: block !important;
+                position: absolute;
+                left: 0; right: 0; top: 0;
+                margin: 0 auto;
+                width: 78mm;
+                color: #000 !important;
+                background: #fff !important;
+                font-size: 12px;
+                font-weight: bold;
+                direction: rtl;
+                text-align: center !important;
+                padding: 5px;
+            }
+            #printable-receipt table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+            #printable-receipt th, #printable-receipt td { border: 1px solid #000; padding: 4px; }
+            #printable-receipt hr { border: none; border-top: 1px dashed #000; margin: 6px 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    <div class="top-bar">
+        <h2>💊 EMAN BALAD PHARMACY - نظام إدارة الشفتات والكاش</h2>
+        <span>إشراف د. إياس والأستاذة إيمان</span>
+    </div>
+
+    <div class="dashboard-nav">
+        <button class="nav-tab active" onclick="switchTab('shift-tab', event)">🕒 تسجيل الدوام والكاش</button>
+        <button class="nav-tab" onclick="switchTab('admin-tab', event)">🔒 بوابة الإدارة (د. إياس & أ. إيمان)</button>
+    </div>
+
+    <div class="content-area">
+        <div class="clock-display" id="liveClock">00:00:00</div>
+
+        <!-- تسجيل الدوام -->
+        <div id="shift-tab" class="tab-content">
+            <div class="card">
+                <h3>تسجيل حضور الدوام وبداية الشفت</h3>
+                <label>اختر الموظف:</label>
+                <select id="empSelect" class="form-control" onchange="handleEmpChange()">
+                </select>
+
+                <!-- صندوق إضافة موظف جديد -->
+                <div id="newStaffBox" style="display:none; background:#f0f9ff; padding:12px; border-radius:8px; border:1px solid #bae6fd; margin-bottom:12px;">
+                    <h4 style="margin:0 0 8px 0; color:#0369a1;">إضافة موظف جديد للسيستم:</h4>
+                    <label>اسم الموظف الجديد:</label>
+                    <input type="text" id="newEmpName" class="form-control" placeholder="مثال: Sara">
+                    <label>الرمز السري الخاص به:</label>
+                    <input type="password" id="newEmpPin" class="form-control" placeholder="رمز الدخول الخاص به">
+                    <button class="btn btn-primary" style="width:100%; margin-top:5px;" onclick="addNewStaffMember()">💾 حفظ الموظف الجديد في السيستم</button>
+                </div>
+
+                <label>الرمز السري:</label>
+                <input type="password" id="empPin" class="form-control" placeholder="أدخل الرقم السري">
+
+                <div id="startCashBox">
+                    <label>💵 بداية الكاش عند الاستلام (شيكل):</label>
+                    <input type="number" id="startCash" class="form-control" placeholder="مثال: 100">
+                </div>
+
+                <div id="statusBadge" style="display:none; padding:10px; background:#e0f2fe; border-radius:6px; font-weight:bold; margin-bottom:12px;"></div>
+
+                <div style="display:flex; gap:10px;">
+                    <button id="btnIn" class="btn btn-success" style="flex:1;" onclick="clockIn()">تسجيل دخول + بدء الوردية ➔</button>
+                </div>
+            </div>
+
+            <!-- قائمة المهام اليومية -->
+            <div id="tasks-section" class="card" style="display:none;">
+                <h3>📋 قائمة المهام اليومية المطلوبة خلال الوردية (20 مهمة)</h3>
+                <div class="tasks-grid" id="tasksGrid"></div>
+
+                <hr style="margin:20px 0; border:none; border-top:1px solid #cbd5e1;">
+
+                <h3 style="color:#dc2626;">💵 نهاية الشفت وتسليم الكاش</h3>
+                <label style="color:#dc2626; font-weight:bold;">نهاية الكاش عند التسليم (المبلغ الصافي بالنقدية):</label>
+                <input type="number" id="endCash" class="form-control" placeholder="مثال: 600">
+
+                <label style="margin-top:10px; display:block;">ملاحظات الوردية:</label>
+                <input type="text" id="shiftNotes" class="form-control" placeholder="أي ملاحظات إضافية...">
+                
+                <button class="btn btn-primary" style="width:100%; margin-top:10px; font-size:16px;" onclick="submitCheckOut()">💾 إنهاء الوردية والمزامنة والإرسال</button>
+            </div>
+        </div>
+
+        <!-- غرفة الإدارة (د. إياس & أ. إيمان) -->
+        <div id="admin-tab" class="tab-content" style="display:none;">
+            <div id="admin-login-box" class="card">
+                <h3>دخول غرفة الإدارة (د. إياس & أ. إيمان)</h3>
+                <label>كلمة مرور الإدارة:</label>
+                <input type="password" id="adminPin" class="form-control" placeholder="أدخل رمز الإدارة">
+                <button class="btn btn-primary" onclick="verifyAdmin()">دخول الإدارة</button>
+            </div>
+
+            <div id="admin-dashboard-content" style="display:none;">
+                <div class="card" style="background:#f8fafc;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h3>📊 تقارير الإدارة المباشرة</h3>
+                        <button class="btn btn-danger" onclick="closeAdmin()">❌ خروج من الإدارة</button>
+                    </div>
+
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+                        <select id="filterEmp" class="form-control" style="width:200px;" onchange="renderDashboard()">
+                        </select>
+                        <input type="date" id="startDate" class="form-control" style="width:160px;">
+                        <input type="date" id="endDate" class="form-control" style="width:160px;">
+                        <button class="btn btn-primary" onclick="renderDashboard()">عرض التقرير تفصيلياً</button>
+                    </div>
+                </div>
+
+                <div class="summary-box" id="summaryBox"></div>
+
+                <!-- قسم إدارة الموظفين: تعديل الأجر + الحذف -->
+                <div class="card" style="background:#fffbe0; border:1px solid #fef08a;">
+                    <h4>⚙️ إدارة الموظفين (تعديل الأجر / حذف موظف):</h4>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                        <select id="manageEmpSelect" class="form-control" style="width:200px;"></select>
+                        <input type="number" id="updateRateValue" class="form-control" placeholder="سعر الساعة الجديد" style="width:160px;">
+                        <button class="btn btn-warning" onclick="updateEmployeeRate()">💾 حفظ السعر</button>
+                        <button class="btn btn-danger" onclick="deleteEmployee()">❌ حذف الموظف نهائياً</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h4>💵 إضافة وتثبيت سند صرف مالي</h4>
+                    <div style="display:flex; gap:10px;">
+                        <input type="number" step="0.01" id="payoutAmount" class="form-control" placeholder="المبلغ بالشيكل">
+                        <input type="text" id="payoutNote" class="form-control" placeholder="البيان والتفاصيل">
+                        <button class="btn btn-success" onclick="addPayout()">حفظ وتثبيت السند</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h4>📝 سجل الدوام والكاش والمهام المنجزة:</h4>
+                    <table id="logsTable">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>الموظف</th>
+                                <th>الدخول / الخروج</th>
+                                <th>بداية الكاش</th>
+                                <th>نهاية الكاش</th>
+                                <th>مبيعات الشفت</th>
+                                <th>المستحق</th>
+                                <th>النقاط والمهام</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h4>💵 سجل سندات الصرف المالي:</h4>
+                    <table id="payoutsTable">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>الموظف</th>
+                                <th>المبلغ المصروف</th>
+                                <th>البيان</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="printable-receipt"></div>
+
+<script>
+    const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycb7sufQxPHmHz9SxXuBrwy74unY_KDRHsyo-QT7BKW5BKA6AZQ8eR0z2P3civuWBA/exec";
+
+    const firebaseConfig = {
+        databaseURL: "https://pharmacy-f0043-default-rtdb.firebaseio.com"
+    };
+
+    let db = null;
+    if (firebaseConfig.databaseURL && !firebaseConfig.databaseURL.includes("YOUR_DATABASE_NAME")) {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.database();
+    }
+
+    const TASKS = [
+        "تنظيف والمحافظة على نظافة الصيدلية العام", "تفقد الإكسباير بشكل دوري", "ترتيب الأدوية والرفوف",
+        "تنظيف وتطوير الصيدلية بشكل عام", "متابعة الإكسبايرات حسب نظام الثلاث شهور", "تطبيق نظام صرف الأقرب تاريخاً FEFO",
+        "تنظيف الحمام وتطهيره", "تنظيف واجهة وباب الصيدلية الزجاجي", "ترتيب أدوية الثلاجة وتسجيل الحرارة",
+        "مراجعة النواقص وتسجيلها", "ترتيب الرفوف الأمامية والعروض", "التأكد من إغلاق النوافذ والأبواب",
+        "جرد المبيعات اليومية وتطابقها", "تنظيف الطاولات وأجهزة الكومبيوتر", "ترتيب المستودع الخلفي",
+        "تفريغ سلات المهملات", "تفقّد مستلزمات الإسعافات الأولية", "متابعة طلبات الزبائن الخاصة",
+        "تنسيق الأدوية البديلة المتوفرة", "إيقاف تشغيل الأجهزة غير الضرورية عند الخروج"
+    ];
+
+    const PHONE_IMAN_ADMIN = "972592198075";
+    const PHONE_EYAS_DOCTOR = "972597941946";
+
+    const DEFAULT_PINS = { 
+        'أسيل 1 أم وتين': '11', 
+        'أسيل 2 نصيف': '22', 
+        'admin': '12345' 
+    };
+    const DEFAULT_RATES = { 
+        'أسيل 1 أم وتين': 15, 
+        'أسيل 2 نصيف': 20 
+    };
+
+    let PINS = JSON.parse(localStorage.getItem('v7_PINS')) || DEFAULT_PINS;
+    let RATES = JSON.parse(localStorage.getItem('v7_RATES')) || DEFAULT_RATES;
+
+    function saveStaffMeta() {
+        localStorage.setItem('v7_PINS', JSON.stringify(PINS));
+        localStorage.setItem('v7_RATES', JSON.stringify(RATES));
+        if (db) {
+            db.ref('meta/PINS').set(PINS);
+            db.ref('meta/RATES').set(RATES);
+        }
+    }
+
+    function syncFromCloud() {
+        if (db) {
+            db.ref('meta/PINS').on('value', snap => {
+                if(snap.exists()) { PINS = snap.val(); localStorage.setItem('v7_PINS', JSON.stringify(PINS)); updateEmpDropdowns(); }
+            });
+            db.ref('meta/RATES').on('value', snap => {
+                if(snap.exists()) { RATES = snap.val(); localStorage.setItem('v7_RATES', JSON.stringify(RATES)); }
+            });
+            db.ref('shifts').on('value', snap => {
+                if(snap.exists()) { localStorage.setItem('v7_shifts', JSON.stringify(snap.val())); checkStatus(); }
+            });
+        }
+    }
+    syncFromCloud();
+
+    function updateClock() {
+        document.getElementById('liveClock').innerText = new Date().toLocaleTimeString('ar-EG');
+    }
+    setInterval(updateClock, 1000); updateClock();
+
+    const grid = document.getElementById('tasksGrid');
+    TASKS.forEach((t, i) => {
+        grid.innerHTML += `<div class="task-card"><span>${i+1}. ${t}</span><input type="checkbox" id="task_${i}"></div>`;
+    });
+
+    function switchTab(tabId, evt) {
+        document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+        document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+        document.getElementById(tabId).style.display = 'block';
+        if(evt) evt.target.classList.add('active');
+    }
+
+    function handleEmpChange() {
+        const emp = document.getElementById('empSelect').value;
+        if (emp === 'NEW_STAFF') {
+            document.getElementById('newStaffBox').style.display = 'block';
+        } else {
+            document.getElementById('newStaffBox').style.display = 'none';
+        }
+        checkStatus();
+    }
+
+    function addNewStaffMember() {
+        const name = document.getElementById('newEmpName').value.trim();
+        const pin = document.getElementById('newEmpPin').value.trim();
+
+        if (!name || !pin) { 
+            alert('الرجاء إدخال اسم الموظف الجديد والرقم السري!'); 
+            return; 
+        }
+
+        PINS[name] = pin;
+        RATES[name] = 15;
+        saveStaffMeta();
+        updateEmpDropdowns();
+
+        document.getElementById('empSelect').value = name;
+        document.getElementById('newStaffBox').style.display = 'none';
+        document.getElementById('newEmpName').value = '';
+        document.getElementById('newEmpPin').value = '';
+
+        alert(`✅ تم حفظ الموظف الجديد (${name}) بنجاح في السيستم!`);
+        checkStatus();
+    }
+
+    function deleteEmployee() {
+        const emp = document.getElementById('manageEmpSelect').value;
+        if (!emp || emp === 'admin') return;
+
+        if (confirm(`⚠ هل أنت تأكد من حذف الموظف (${emp}) نهائياً من السيستم؟`)) {
+            delete PINS[emp];
+            delete RATES[emp];
+            saveStaffMeta();
+            updateEmpDropdowns();
+            alert(`✅ تم حذف الموظف (${emp}) بنجاح.`);
+            renderDashboard();
+        }
+    }
+
+    function updateEmployeeRate() {
+        const emp = document.getElementById('manageEmpSelect').value;
+        const newRate = parseFloat(document.getElementById('updateRateValue').value);
+
+        if (!newRate || newRate <= 0) {
+            alert('أدخل سعر ساعة صحيح!');
+            return;
+        }
+
+        RATES[emp] = newRate;
+        saveStaffMeta();
+        alert(`✅ تم تعديل سعر الساعة للموظفة (${emp}) إلى ${newRate} شيكل بنجاح!`);
+        renderDashboard();
+    }
+
+    function updateEmpDropdowns() {
+        const empSelect = document.getElementById('empSelect');
+        const filterEmp = document.getElementById('filterEmp');
+        const manageEmpSelect = document.getElementById('manageEmpSelect');
+
+        const currentVal = empSelect.value;
+        empSelect.innerHTML = '';
+        filterEmp.innerHTML = '';
+        if(manageEmpSelect) manageEmpSelect.innerHTML = '';
+
+        Object.keys(PINS).forEach(emp => {
+            if (emp !== 'admin') {
+                empSelect.innerHTML += `<option value="${emp}">${emp}</option>`;
+                filterEmp.innerHTML += `<option value="${emp}">فولدر ${emp}</option>`;
+                if(manageEmpSelect) manageEmpSelect.innerHTML += `<option value="${emp}">${emp}</option>`;
+            }
+        });
+        empSelect.innerHTML += `<option value="NEW_STAFF">➕ إضافة موظف جديد...</option>`;
+        if(PINS[currentVal]) empSelect.value = currentVal;
+    }
+    updateEmpDropdowns();
+
+    function getLogs(emp) { return JSON.parse(localStorage.getItem(`v7_${emp}_logs`) || '[]'); }
+    function saveLogs(emp, data) {
+        localStorage.setItem(`v7_${emp}_logs`, JSON.stringify(data));
+        if (db) db.ref(`logs/${emp}`).set(data);
+    }
+
+    function getPayouts(emp) { return JSON.parse(localStorage.getItem(`v7_${emp}_payouts`) || '[]'); }
+    function savePayouts(emp, data) {
+        localStorage.setItem(`v7_${emp}_payouts`, JSON.stringify(data));
+        if (db) db.ref(`payouts/${emp}`).set(data);
+    }
+
+    function checkStatus() {
+        let emp = document.getElementById('empSelect').value;
+        if (emp === 'NEW_STAFF') return;
+
+        const shifts = JSON.parse(localStorage.getItem('v7_shifts') || '{}');
+        const badge = document.getElementById('statusBadge');
+        if (shifts[emp]) {
+            badge.style.display = 'block';
+            badge.innerText = `🟢 ${emp} داخل الوردية حالياً | بداية الكاش: ${shifts[emp].startCash} ₪ (${shifts[emp].inTime})`;
+            document.getElementById('btnIn').disabled = true;
+            document.getElementById('startCashBox').style.display = 'none';
+            document.getElementById('tasks-section').style.display = 'block';
+        } else {
+            badge.style.display = 'none';
+            document.getElementById('startCashBox').style.display = 'block';
+            document.getElementById('btnIn').disabled = false;
+            document.getElementById('tasks-section').style.display = 'none';
+        }
+    }
+
+    function sendWhatsAppAlerts(msgText) {
+        window.open(`https://wa.me/${PHONE_IMAN_ADMIN}?text=${encodeURIComponent(msgText)}`, '_blank');
+        setTimeout(() => {
+            window.open(`https://wa.me/${PHONE_EYAS_DOCTOR}?text=${encodeURIComponent(msgText)}`, '_blank');
+        }, 1000);
+    }
+
+    function clockIn() {
+        let empSelect = document.getElementById('empSelect');
+        let emp = empSelect.value;
+
+        if (emp === 'NEW_STAFF') {
+            alert('الرجاء الضغط على زر "حفظ الموظف الجديد" أولاً لقيده في النظام.');
+            return;
+        }
+
+        const pin = document.getElementById('empPin').value;
+        const startCash = parseFloat(document.getElementById('startCash').value) || 0;
+
+        if (pin !== PINS[emp]) { alert('❌ الرقم السري غير صحيح!'); return; }
+
+        const now = new Date();
+        const hrs = now.getHours(); const mins = now.getMinutes();
+        let late = false;
+
+        if (emp.includes('أسيل 1') && (hrs > 11 || (hrs === 11 && mins > 20))) late = true;
+        if (emp.includes('أسيل 2') && (hrs > 17 || (hrs === 17 && mins > 20))) late = true;
+
+        const shifts = JSON.parse(localStorage.getItem('v7_shifts') || '{}');
+        shifts[emp] = { timestamp: now.getTime(), inTime: now.toLocaleTimeString('ar-EG'), date: now.toISOString().split('T')[0], startCash: startCash };
+        localStorage.setItem('v7_shifts', JSON.stringify(shifts));
+        if (db) db.ref('shifts').set(shifts);
+
+        let clockInMsg = `🟢 *بدء وردية جديدة - EMAN BALAD PHARMACY*\n👤 *الموظف:* ${emp}\n🗓 *التاريخ:* ${shifts[emp].date}\n⏰ *وقت تسجيل الدخول:* ${shifts[emp].inTime}\n💵 *بداية الكاش عند الاستلام:* ${startCash} ₪`;
+        if (late) {
+            clockInMsg += `\n🚨 *تنبيه:* تم تسجيل الدخول متأخراً عن موعد الشفت الرسمي!`;
+        }
+
+        sendWhatsAppAlerts(clockInMsg);
+
+        alert(`✅ تم تسجيل دخول ${emp} بنجاح | بداية الكاش: ${startCash} ₪ وتم إرسال الإشعار للإدارة.`);
+        document.getElementById('empPin').value = '';
+        checkStatus();
+    }
+
+    function submitCheckOut() {
+        const emp = document.getElementById('empSelect').value;
+        const shifts = JSON.parse(localStorage.getItem('v7_shifts') || '{}');
+        const sData = shifts[emp];
+        if (!sData) {
+            alert('❌ لم يتم تسجيل الدخول بعد لهذه الوردية!');
+            return;
+        }
+
+        const endCash = parseFloat(document.getElementById('endCash').value);
+        if (isNaN(endCash)) { alert('الرجاء أدخل مبلغ نهاية الكاش عند التسليم'); return; }
+
+        const now = new Date();
+        const durationHrs = parseFloat(((now.getTime() - sData.timestamp) / (1000 * 60 * 60)).toFixed(2));
+        
+        const rate = RATES[emp] || 15;
+        const amount = parseFloat((durationHrs * rate).toFixed(2));
+        const netSales = endCash - sData.startCash;
+
+        let doneTasks = [];
+        TASKS.forEach((t, i) => { if (document.getElementById(`task_${i}`).checked) doneTasks.push(t); });
+
+        const points = doneTasks.length;
+
+        const record = {
+            id: Date.now(), date: sData.date, emp: emp, inTime: sData.inTime, outTime: now.toLocaleTimeString('ar-EG'),
+            hours: durationHrs, amount: amount, startCash: sData.startCash, endCash: endCash, netSales: netSales,
+            tasksCount: doneTasks.length, points: points, details: doneTasks.join(' | ')
+        };
+
+        const logs = getLogs(emp); logs.push(record); saveLogs(emp, logs);
+        delete shifts[emp]; localStorage.setItem('v7_shifts', JSON.stringify(shifts));
+        if (db) db.ref('shifts').set(shifts);
+
+        if (GOOGLE_SHEET_URL) {
+            fetch(GOOGLE_SHEET_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(record)
+            }).catch(e => console.log(e));
+        }
+
+        const reportMsg = `📋 *تقرير تسليم الوردية والكاش - EMAN BALAD PHARMACY*\n👤 *الموظف:* ${emp}\n🗓 *التاريخ:* ${sData.date}\n⏰ *الدخول:* ${sData.inTime} | *الخروج:* ${record.outTime}\n💵 *بداية الكاش:* ${sData.startCash} ₪\n💵 *نهاية الكاش:* ${endCash} ₪\n📈 *مبيعات الوردية:* ${netSales} ₪\n⭐ *النقاط المكتسبة:* ${points} نقطة`;
+
+        sendWhatsAppAlerts(reportMsg);
+        alert(`✅ تم إنهاء الوردية والمزامنة مع Google Sheets بنجاح!`);
+        location.reload();
+    }
+
+    function verifyAdmin() {
+        if (document.getElementById('adminPin').value === PINS['admin']) {
+            document.getElementById('admin-login-box').style.display = 'none';
+            document.getElementById('admin-dashboard-content').style.display = 'block';
+
+            const currentYear = new Date().getFullYear();
+            document.getElementById('startDate').value = `${currentYear}-01-01`;
+            document.getElementById('endDate').value = `${currentYear}-12-31`;
+            renderDashboard();
+        } else { alert('❌ رمز الإدارة خاطئ!'); }
+    }
+
+    function closeAdmin() {
+        document.getElementById('admin-dashboard-content').style.display = 'none';
+        document.getElementById('admin-login-box').style.display = 'block';
+        document.getElementById('adminPin').value = '';
+    }
+
+    function addPayout() {
+        const emp = document.getElementById('filterEmp').value;
+        const amount = parseFloat(document.getElementById('payoutAmount').value);
+        const note = document.getElementById('payoutNote').value || 'سند صرف';
+
+        if (!amount || amount <= 0) { alert('أدخل مبلغ صحيح'); return; }
+
+        const payout = { id: Date.now(), date: new Date().toISOString().split('T')[0], emp: emp, amount: amount, note: note };
+        const payouts = getPayouts(emp); payouts.push(payout); savePayouts(emp, payouts);
+
+        alert(`✅ تم حفظ وتثبيت السند لـ ${emp}`);
+        document.getElementById('payoutAmount').value = '';
+        document.getElementById('payoutNote').value = '';
+        renderDashboard();
+    }
+
+    function renderDashboard() {
+        const emp = document.getElementById('filterEmp').value;
+        const sDate = document.getElementById('startDate').value;
+        const eDate = document.getElementById('endDate').value;
+
+        const allLogs = getLogs(emp);
+        const allPayouts = getPayouts(emp);
+
+        const filteredLogs = allLogs.filter(l => (!sDate || l.date >= sDate) && (!eDate || l.date <= eDate));
+        const filteredPayouts = allPayouts.filter(p => (!sDate || p.date >= sDate) && (!eDate || p.date <= eDate));
+
+        const totalEarned = filteredLogs.reduce((s, l) => s + l.amount, 0);
+        const totalPaid = filteredPayouts.reduce((s, p) => s + p.amount, 0);
+        const totalSales = filteredLogs.reduce((s, l) => s + (l.netSales || 0), 0);
+        const totalPoints = filteredLogs.reduce((s, l) => s + (l.points || l.tasksCount || 0), 0);
+        const remaining = totalEarned - totalPaid;
+
+        document.getElementById('summaryBox').innerHTML = `
+            <div style="font-size:16px;">📁 <b>الفولدر النشط:</b> <span style="color:var(--secondary); font-weight:bold;">${emp}</span></div>
+            <div>🗓 <b>الفترة المحددة:</b> ${sDate || 'الكل'} إلى ${eDate || 'الكل'}</div>
+            <hr style="border:none; border-top:1px solid #bbf7d0; margin:8px 0;">
+            <div>🏆 <b>مجموع النقاط التراكمية:</b> <span class="points-badge">${totalPoints} نقطة</span></div>
+            <div>📈 <b>إجمالي مبيعات ورشات الموظف:</b> <span style="font-weight:bold; color:purple;">${totalSales.toFixed(2)} ₪</span></div>
+            <div>⏱ <b>إجمالي مستحق الساعات:</b> <span style="font-weight:bold;">${totalEarned.toFixed(2)} ₪</span></div>
+            <div>💸 <b>إجمالي المسحوبات / السندات:</b> <span style="font-weight:bold; color:#dc2626;">${totalPaid.toFixed(2)} ₪</span></div>
+            <div style="font-size:16px; margin-top:5px; color:#15803d;">💰 <b>الرصيد المتبقي للموظف:</b> <b>${remaining.toFixed(2)} ₪</b></div>
+        `;
+
+        // تعبئة جدول السجلات
+        const logsTbody = document.querySelector('#logsTable tbody');
+        logsTbody.innerHTML = '';
+        filteredLogs.forEach(l => {
+            logsTbody.innerHTML += `
+                <tr>
+                    <td>${l.date}</td>
+                    <td>${l.emp}</td>
+                    <td>${l.inTime} - ${l.outTime}<br>(${l.hours} ساعة)</td>
+                    <td>${l.startCash} ₪</td>
+                    <td>${l.endCash} ₪</td>
+                    <td><b>${l.netSales} ₪</b></td>
+                    <td><b>${l.amount} ₪</b></td>
+                    <td><span class="points-badge">${l.points} نقطة</span></td>
+                    <td>
+                        <button class="btn btn-primary" onclick='printReceipt(${JSON.stringify(l)})'>🖨 طباعة</button>
+                        <button class="btn btn-danger" onclick="deleteLogItem('${emp}', ${l.id})">🗑 حذف</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        // تعبئة جدول السندات المصروفة
+        const payoutsTbody = document.querySelector('#payoutsTable tbody');
+        payoutsTbody.innerHTML = '';
+        filteredPayouts.forEach(p => {
+            payoutsTbody.innerHTML += `
+                <tr>
+                    <td>${p.date}</td>
+                    <td>${p.emp}</td>
+                    <td style="color:#dc2626; font-weight:bold;">${p.amount} ₪</td>
+                    <td>${p.note}</td>
+                    <td>
+                        <button class="btn btn-danger" onclick="deletePayoutItem('${emp}', ${p.id})">🗑 حذف</button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    function deleteLogItem(emp, id) {
+        if (confirm('هل أنت تأكد من حذف هذا السجل؟')) {
+            let logs = getLogs(emp);
+            logs = logs.filter(l => l.id !== id);
+            saveLogs(emp, logs);
+            renderDashboard();
+        }
+    }
+
+    function deletePayoutItem(emp, id) {
+        if (confirm('هل أنت تأكد من حذف هذا السند؟')) {
+            let payouts = getPayouts(emp);
+            payouts = payouts.filter(p => p.id !== id);
+            savePayouts(emp, payouts);
+            renderDashboard();
+        }
+    }
+
+    function printReceipt(rec) {
+        const printArea = document.getElementById('printable-receipt');
+        printArea.innerHTML = `
+            <h2>💊 EMAN BALAD PHARMACY</h2>
+            <p>إيصال تسليم الوردية والكاش</p>
+            <hr>
+            <p><b>الموظف:</b> ${rec.emp}</p>
+            <p><b>التاريخ:</b> ${rec.date}</p>
+            <p><b>الدخول:</b> ${rec.inTime} | <b>الخروج:</b> ${rec.outTime}</p>
+            <p><b>عدد الساعات:</b> ${rec.hours} ساعة</p>
+            <hr>
+            <table>
+                <tr><th>البيان</th><th>المبلغ</th></tr>
+                <tr><td>بداية الكاش</td><td>${rec.startCash} ₪</td></tr>
+                <tr><td>نهاية الكاش</td><td>${rec.endCash} ₪</td></tr>
+                <tr><td><b>صافي المبيعات</b></td><td><b>${rec.netSales} ₪</b></td></tr>
+            </table>
+            <hr>
+            <p><b>المهام المنجزة:</b> ${rec.points} من ${TASKS.length}</p>
+            <p style="margin-top:10px;">إشراف د. إياس والأستاذة إيمان</p>
+        `;
+        window.print();
+    }
+</script>
+</body>
+</html>
